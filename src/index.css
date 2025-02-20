@@ -101,3 +101,56 @@ table {
 .bill-split-results-card:hover {
   transform: translateY(-2px);
 }
+
+/* Modern scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(14, 116, 144, 0.3);
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 116, 144, 0.5);
+}
+
+/* For Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(14, 116, 144, 0.3) #f1f5f9;
+}
+
+/* Global styling to apply the scrollbar to all elements */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(14, 116, 144, 0.3) #f1f5f9;
+}
+
+*::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(14, 116, 144, 0.3);
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 116, 144, 0.5);
+}
