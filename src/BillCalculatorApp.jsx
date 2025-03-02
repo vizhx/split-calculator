@@ -38,7 +38,7 @@ const BillSplitCalculator = () => {
 
       // If using portions (totalPortions > 1)
       if (item.totalPortions > 1 && item.portions) {
-        const totalAllocatedPortions = Object.values(item.portions).reduce((sum, p) => sum + p, 0);
+        const totalAllocatedPortions = item.totalPortions;
         if (totalAllocatedPortions <= 0) return;
         
         // Calculate price per portion
