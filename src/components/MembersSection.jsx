@@ -24,8 +24,15 @@ const MembersSection = ({
   };
 
   const handleSave = (memberId) => {
-    onUpdateMember(memberId, editNames[memberId]);
-    setEditingStates((prev) => ({ ...prev, [memberId]: false }));
+    // Fixed: Check if the edited name exists and is not empty before saving
+    if (editNames[memberId] && editNames[memberId].trim() !== "") {
+      onUpdateMember(memberId, editNames[memberId]);
+      setEditingStates((prev) => ({ ...prev, [memberId]: false }));
+    } else {
+      // If empty, revert to original name
+      setEditNames((prev) => ({ ...prev, [memberId]: members.find(m => m.id === memberId)?.name || "" }));
+      setEditingStates((prev) => ({ ...prev, [memberId]: false }));
+    }
   };
 
   const handleKeyDown = (e, memberId) => {
@@ -40,8 +47,10 @@ const MembersSection = ({
 
   // Members Section handlers
   const handleAddMember = () => {
-    onAddMember(newMemberName);
-    setNewMemberName("");
+    if (newMemberName.trim() !== "") {
+      onAddMember(newMemberName);
+      setNewMemberName("");
+    }
   };
 
   const toggleMemberSelection = (id) => {
@@ -75,7 +84,8 @@ const MembersSection = ({
   // Member Item component render
   const renderMemberItem = (member) => {
     const isEditing = editingStates[member.id] || false;
-    const editName = editNames[member.id] || member.name;
+    // Fixed: Ensure we get the current edit value or fall back to member's name
+    const editName = editNames[member.id] !== undefined ? editNames[member.id] : member.name;
 
     return (
       <div
