@@ -9,78 +9,87 @@ const BillSplitCalculator = () => {
     { id: 2, name: "Person 2", icon: "user" },
   ]);
   const [items, setItems] = useState([
-    { id: 1, name: "Food Item 1", price: 0, consumers: [1], totalPortions: 1 },
+    { id: 1, name: "Food Item 1", price: 0, consumers: [1], totalPortions: 1, discountExempt: false },
   ]);
   const [nextMemberId, setNextMemberId] = useState(3);
   const [nextItemId, setNextItemId] = useState(2);
   const [calculations, setCalculations] = useState({});
+  const [discountPercentage, setDiscountPercentage] = useState(0);
 
   // Calculate each person's share whenever items or members change
   useEffect(() => {
     calculateShares();
-  }, [items, members]);
+  }, [items, members, discountPercentage]);
 
   const calculateShares = () => {
     const memberShares = {};
     const memberTotals = {};
-    
+    let totalDiscount = 0;
+
     // Initialize totals for each member
     members.forEach(member => {
       memberTotals[member.id] = 0;
+      memberShares[member.id] = [];
     });
 
     // Calculate each item's share per consumer
     items.forEach(item => {
       if (!item.price || item.consumers.length === 0) return;
-      
+
       const price = parseFloat(item.price);
       if (isNaN(price) || price <= 0) return;
+
+      // Apply discount if applicable
+      const isDiscountApplicable = discountPercentage > 0 && !item.discountExempt;
+      const discountMultiplier = isDiscountApplicable ? (1 - discountPercentage / 100) : 1;
+      const effectivePrice = price * discountMultiplier;
+
+      // Track total discount amount
+      if (isDiscountApplicable) {
+        totalDiscount += price - effectivePrice;
+      }
 
       // If using portions (totalPortions > 1)
       if (item.totalPortions > 1 && item.portions) {
         const totalAllocatedPortions = item.totalPortions;
         if (totalAllocatedPortions <= 0) return;
-        
+
         // Calculate price per portion
-        const pricePerPortion = price / totalAllocatedPortions;
-        
+        const pricePerPortion = effectivePrice / totalAllocatedPortions;
+
         // Assign costs based on portions
         item.consumers.forEach(memberId => {
           const memberPortion = item.portions[memberId] || 0;
           if (memberPortion > 0) {
             const share = pricePerPortion * memberPortion;
-            
-            if (!memberShares[memberId]) {
-              memberShares[memberId] = [];
-            }
-            
+
             memberShares[memberId].push({
               itemId: item.id,
               itemName: item.name,
               amount: share,
-              portions: memberPortion
+              portions: memberPortion,
+              originalPrice: price,
+              discounted: isDiscountApplicable
             });
-            
+
             memberTotals[memberId] += share;
           }
         });
-      } 
+      }
       // Equal split
       else {
-        const sharePerPerson = price / item.consumers.length;
-        
+        const sharePerPerson = effectivePrice / item.consumers.length;
+
         item.consumers.forEach(memberId => {
-          if (!memberShares[memberId]) {
-            memberShares[memberId] = [];
-          }
-          
           memberShares[memberId].push({
             itemId: item.id,
             itemName: item.name,
             amount: sharePerPerson,
-            portions: 1
+            portions: 1,
+            originalPrice: price,
+            discounted: isDiscountApplicable
           });
-          
+
           memberTotals[memberId] += sharePerPerson;
         });
       }
@@ -92,7 +101,9 @@ const BillSplitCalculator = () => {
     setCalculations({
       memberShares,
       memberTotals,
-      totalBill
+      totalBill,
+      totalDiscount,
+      itemizedBreakdown: true
     });
   };
 
@@ -126,12 +137,12 @@ const BillSplitCalculator = () => {
         ...item,
         consumers: item.consumers.filter((consumerId) => consumerId !== id),
         // Also remove from portions if applicable
-        portions: item.portions 
+        portions: item.portions
           ? Object.fromEntries(
-              Object.entries(item.portions).filter(
-                ([memberId]) => parseInt(memberId) !== id
-              )
+            Object.entries(item.portions).filter(
+              ([memberId]) => parseInt(memberId) !== id
             )
+          )
           : undefined
       }))
     );
@@ -173,7 +184,8 @@ const BillSplitCalculator = () => {
         name: name,
         price: 0,
         consumers: [],
-        totalPortions: 1 // Default to 1 portion (equal split)
+        totalPortions: 1, // Default to 1 portion (equal split)
+        discountExempt: false // Default to applying discounts
       },
     ]);
     setNextItemId(nextItemId + 1);
@@ -220,32 +232,32 @@ const BillSplitCalculator = () => {
           if (item.consumers.includes(memberId)) {
             // Remove consumer
             newConsumers = item.consumers.filter((id) => id !== memberId);
-            
+
             // Also remove from portions if applicable
-            const newPortions = item.portions 
+            const newPortions = item.portions
               ? Object.fromEntries(
-                  Object.entries(item.portions).filter(
-                    ([id]) => parseInt(id) !== memberId
-                  )
+                Object.entries(item.portions).filter(
+                  ([id]) => parseInt(id) !== memberId
                 )
+              )
               : undefined;
-            
-            return { 
-              ...item, 
+
+            return {
+              ...item,
               consumers: newConsumers,
               portions: newPortions
             };
           } else {
             // Add consumer
             newConsumers = [...item.consumers, memberId];
-            
+
             // Add to portions if using portions
             let newPortions = item.portions ? { ...item.portions } : {};
             if (item.totalPortions > 1) {
               // Try to distribute portions evenly
               const portionPerMember = Math.floor(item.totalPortions / newConsumers.length);
               let remainingPortions = item.totalPortions;
-              
+
               // Reset portions for all consumers
               newPortions = {};
               newConsumers.forEach((id, index) => {
@@ -256,9 +268,9 @@ const BillSplitCalculator = () => {
                 remainingPortions -= memberPortion;
               });
             }
-            
-            return { 
-              ...item, 
+
+            return {
+              ...item,
               consumers: newConsumers,
               portions: item.totalPortions > 1 ? newPortions : undefined
             };
@@ -268,6 +280,7 @@ const BillSplitCalculator = () => {
       })
     );
   };
+
 
   const updatePortions = (itemId, totalPortions, portions) => {
     setItems(
@@ -284,12 +297,29 @@ const BillSplitCalculator = () => {
     );
   };
 
+  // New handler for discount percentage updates
+  const updateDiscount = (percentage) => {
+    setDiscountPercentage(percentage);
+  };
+
+  // New handler for toggling discount exemption for an item
+  const toggleDiscountExempt = (itemId) => {
+    setItems(
+      items.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, discountExempt: !item.discountExempt };
+        }
+        return item;
+      })
+    );
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <h1 className="text-3xl font-bold text-teal-800 mb-8 text-center">
         Bill Split Calculator
       </h1>
-      
+
       <MembersSection
         members={members}
         onAddMember={addMember}
@@ -297,7 +327,7 @@ const BillSplitCalculator = () => {
         onRemoveMember={removeMember}
         onRemoveMultipleMembers={removeMultipleMembers}
       />
-      
+
       <ItemsSection
         items={items}
         members={members}
@@ -308,8 +338,11 @@ const BillSplitCalculator = () => {
         onUpdatePrice={updatePrice}
         onToggleConsumer={toggleConsumer}
         onUpdatePortions={updatePortions}
+        discountPercentage={discountPercentage}
+        onUpdateDiscount={updateDiscount}
+        onToggleDiscountExempt={toggleDiscountExempt}
       />
-      
+
       <ResultsSection
         members={members}
         calculations={calculations}

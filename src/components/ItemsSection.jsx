@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Edit, Check, Trash2, Pizza, User, PieChart } from "lucide-react";
+import { X, Plus, Edit, Check, Trash2, Pizza, User, Percent, ShieldOff, PieChart } from "lucide-react";
 import InputWithButton from "./InputWithButton"; // Assuming this component exists
 
 // Component to render the portion pie chart icon
@@ -206,6 +206,9 @@ const ItemsSection = ({
     onUpdatePrice,
     onToggleConsumer,
     onUpdatePortions,
+    onUpdateDiscount, // New prop for handling discount updates
+    onToggleDiscountExempt, // New prop for handling discount exemption
+    discountPercentage = 0, // New prop for discount percentage
 }) => {
     const [newItemName, setNewItemName] = useState("");
     const [itemMultiSelectMode, setItemMultiSelectMode] = useState(false);
@@ -213,6 +216,11 @@ const ItemsSection = ({
     const [editingItemId, setEditingItemId] = useState(null);
     const [editName, setEditName] = useState("");
     const [portionModal, setPortionModal] = useState(null);
+    const [showDiscountInput, setShowDiscountInput] = useState(discountPercentage > 0);
+    
+    useEffect(() => {
+        setShowDiscountInput(discountPercentage > 0);
+    }, [discountPercentage]);
 
     const handleAddItem = () => {
         onAddItem(newItemName);
@@ -252,6 +260,16 @@ const ItemsSection = ({
         setEditingItemId(null);
         setEditName("");
 
+    };
+
+    const handleDiscountChange = (e) => {
+        const value = parseFloat(e.target.value) || 0;
+        onUpdateDiscount(Math.max(0, Math.min(100, value)));
+    };
+
+    // New handler for toggling discount exemption for an item
+    const handleToggleDiscountExempt = (itemId) => {
+        onToggleDiscountExempt(itemId);
     };
 
     // Handle Enter key press
@@ -443,6 +461,20 @@ const ItemsSection = ({
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-teal-700">Food Items</h2>
                 <div className="flex space-x-2">
+                    {/* Discount Input */}
+                    <div className="flex items-center mr-4">
+                        
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={discountPercentage}
+                            onChange={handleDiscountChange}
+                            className="w-16 px-2 py-1 border border-teal-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-500"
+                            placeholder="0%"
+                        />
+                        <Percent className="h-4 w-4 text-teal-600 mr-1" /><span className="ml-1 text-sm text-teal-700">off</span>
+                    </div>
                     <button
                         onClick={toggleItemMultiSelectMode}
                         className={`px-3 py-1 rounded text-sm font-medium transition-colors ${itemMultiSelectMode
@@ -477,6 +509,14 @@ const ItemsSection = ({
                             <th className="p-2 ps-3 text-left w-1/4 text-teal-800">Item</th>
                             <th className="p-2 ps-3 text-left w-1/6 text-teal-800">Price</th>
                             <th className="p-2 ps-3 text-left w-1/6 text-teal-800">Portions</th>
+                            {discountPercentage > 0 && (
+                                <th className="p-2 w-16 text-center text-teal-800">
+                                    <div className="flex items-center justify-center">
+                                        <span className="text-xs">No Discount</span>
+                                    </div>
+                                </th>
+                            )}
+
                             {members.map((member) => (
                                 <th key={member.id} className="p-2 text-center">
                                     <div className="flex flex-col items-center">
@@ -586,13 +626,14 @@ const ItemsSection = ({
                                             className="w-16 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500 text-gray-800"
                                         />
 
-                                        <div className="ml-2">
+                                        {item.totalPortions > 1 && (<div className="ml-2">
                                             <PortionPieChart
                                                 totalPortions={item.totalPortions || 1}
                                                 allocatedPortions={getTotalAllocatedPortions(item)}
                                                 size={24}
                                             />
-                                        </div>
+                                        </div>)}
+
 
                                         {item.totalPortions > 1 && (
                                             <span className="ml-1 text-xs text-teal-600">
@@ -601,6 +642,30 @@ const ItemsSection = ({
                                         )}
                                     </div>
                                 </td>
+                                {/* Discount Exemption Column - Only visible when discount > 0 */}
+                                {discountPercentage > 0 && (
+                                    <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center space-x-1">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleDiscountExempt(item.id);
+                                            }}
+                                            className={`w-6 h-6 rounded-full flex-shrink-0 inline-flex items-center justify-center ${
+                                                item.discountExempt
+                                                    ? "bg-red-500 text-white"
+                                                    : "bg-gray-200"
+                                            }`}
+                                            title={item.discountExempt ? "No discount applied" : "Discount applied"}
+                                            type="button"
+                                        >
+                                            {item.discountExempt && (
+                                                <ShieldOff className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                        </div>
+                                    </td>
+                                )}
                                 {members.map((member) => (
                                     <td key={member.id} className="p-2 text-center">
                                         <div className="flex items-center justify-center space-x-1">
